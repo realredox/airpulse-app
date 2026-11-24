@@ -1,0 +1,40 @@
+name: Build AirPulse Android APK
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 코드 불러오기
+        uses: actions/checkout@v5
+
+      - name: Flutter SDK 설치
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: 안드로이드 프로젝트 환경 자동 초기화
+        run: |
+          mkdir temp_proj
+          cd temp_proj
+          flutter create --org com.airpulse.icn --project-name airpulse_app .
+          cp -r android ..
+          cd ..
+          rm -rf temp_proj
+          sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
+          sed -i 's/android:label="airpulse_app"/android:label="AirPulse"/' android/app/src/main/AndroidManifest.xml
+
+      - name: 패키지 다운로드 및 APK 빌드
+        run: |
+          flutter pub get
+          flutter build apk --release
+
+      - name: 빌드된 APK 파일 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: AirPulse-Android-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
