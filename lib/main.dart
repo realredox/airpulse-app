@@ -209,6 +209,7 @@ class _MainHomePageState extends State<MainHomePage> {
           Row(
             children: [
               Expanded(
+                flex: 5,
                 child: TextField(
                   controller: _searchCtrl,
                   onChanged: (_) => setState(() {}),
@@ -227,31 +228,44 @@ class _MainHomePageState extends State<MainHomePage> {
                 ),
               ),
               const SizedBox(width: 6),
-              InkWell(
-                onTap: () => setState(() => _onlyChanged = !_onlyChanged),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _onlyChanged ? Colors.orange.shade200 : Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _onlyChanged ? Colors.orange : Colors.grey.shade400),
-                  ),
-                  child: const Text("변경", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(width: 4),
-              InkWell(
-                onTap: () => setState(() => _includeCodeshare = !_includeCodeshare),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _includeCodeshare ? Colors.blue.shade100 : Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _includeCodeshare ? Colors.blue : Colors.grey.shade400),
-                  ),
-                  child: const Text("C/S", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              Expanded(
+                flex: 2,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setState(() => _onlyChanged = !_onlyChanged),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _onlyChanged ? Colors.orange.shade200 : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: _onlyChanged ? Colors.orange : Colors.grey.shade400),
+                          ),
+                          child: const Text("변경", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setState(() => _includeCodeshare = !_includeCodeshare),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _includeCodeshare ? Colors.blue.shade100 : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: _includeCodeshare ? Colors.blue : Colors.grey.shade400),
+                          ),
+                          child: const Text("C/S", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
