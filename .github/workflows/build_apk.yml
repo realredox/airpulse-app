@@ -1,12 +1,15 @@
-name: Build AirPulse Android APK
+name: Build AirPulse App & Web Preview
 
 on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build-android:
+  build-all:
     runs-on: ubuntu-latest
     steps:
       - name: 코드 불러오기
@@ -17,24 +20,31 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: 안드로이드 프로젝트 환경 자동 초기화
+      - name: 안드로이드 및 웹 환경 초기화
         run: |
           mkdir temp_proj
           cd temp_proj
           flutter create --org com.airpulse.icn --project-name airpulse_app .
-          cp -r android ..
+          cp -r android web ..
           cd ..
           rm -rf temp_proj
           sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
           sed -i 's/android:label="airpulse_app"/android:label="AirPulse"/' android/app/src/main/AndroidManifest.xml
 
-      - name: 패키지 다운로드 및 APK 빌드
+      - name: 패키지 다운로드 및 APK + 웹 동시 빌드
         run: |
           flutter pub get
           flutter build apk --release
+          flutter build web --release --base-href "/airpulse-app/"
 
       - name: 빌드된 APK 파일 업로드
         uses: actions/upload-artifact@v4
         with:
           name: AirPulse-Android-APK
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: 웹 미리보기(GitHub Pages) 자동 배포
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/web
