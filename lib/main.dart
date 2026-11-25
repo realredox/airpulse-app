@@ -48,6 +48,7 @@ class _MainHomePageState extends State<MainHomePage> {
   String _selectedType = "전체";
   bool _includeCodeshare = false;
   bool _onlyChanged = false;
+  bool _isInitialLoad = true;
   final TextEditingController _searchCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
   Set<String> _favFlights = {};
@@ -112,11 +113,18 @@ class _MainHomePageState extends State<MainHomePage> {
           _allRecords = records;
           _updatedAt = decoded['updated_at'] ?? '';
           _dateOptions = dates.toList();
-          if (_selectedDate == "전체") {
+          if (_isInitialLoad) {
             _selectedDate = _dateOptions.firstWhere((d) => d.startsWith("오늘"), orElse: () => "전체");
           }
           _isLoading = false;
         });
+        if (_isInitialLoad) {
+          _isInitialLoad = false;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _jumpToCurrentTime(_getFilteredList(onlyFavorites: false));
+          });
+        }
+
       } else if (!silent) {
         setState(() { _errorMsg = "서버 응답 오류 (${res.statusCode})"; _isLoading = false; });
       }
