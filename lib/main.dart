@@ -95,7 +95,7 @@ class _MainHomePageState extends State<MainHomePage> {
   Future<void> _fetchFlightData({bool silent = false}) async {
     if (!silent) setState(() { _isLoading = true; _errorMsg = ""; });
     try {
-      const liveUrl = "여기에_복사한_공개_URL_붙여넣기";
+      const liveUrl = "https://storage.googleapis.com/airpulse-icn-data-2026/flight_db.json";
       final uri = Uri.parse("$liveUrl?t=${DateTime.now().millisecondsSinceEpoch}");
       final res = await http.get(uri).timeout(const Duration(seconds: 15));
       if (res.statusCode == 200) {
@@ -226,13 +226,13 @@ class _MainHomePageState extends State<MainHomePage> {
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               ChoiceChip(
                 label: const Text("변경", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                 showCheckmark: false,
                 selectedColor: Colors.orange.shade200,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                labelPadding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
                 selected: _onlyChanged,
                 onSelected: (v) => setState(() => _onlyChanged = v),
@@ -242,8 +242,8 @@ class _MainHomePageState extends State<MainHomePage> {
                 label: const Text("C/S", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                 showCheckmark: false,
                 selectedColor: Colors.blue.shade100,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                labelPadding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
                 selected: _includeCodeshare,
                 onSelected: (v) => setState(() => _includeCodeshare = v),
