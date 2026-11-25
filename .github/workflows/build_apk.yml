@@ -1,4 +1,4 @@
-name: Build AirPulse App & Web Preview
+name: Build AirPulse Release (AAB + APK + Web)
 
 on:
   push:
@@ -31,13 +31,48 @@ jobs:
           sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' android/app/src/main/AndroidManifest.xml
           sed -i 's/android:label="airpulse_app"/android:label="AirPulse"/' android/app/src/main/AndroidManifest.xml
 
-      - name: 패키지 다운로드 및 APK + 웹 동시 빌드
+      - name: 서명 키(Keystore) 연결
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          cat <<EOF > android/key.properties
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=upload-keystore.jks
+          EOF
+          python3 -c '
+          p = "android/app/build.gradle.kts"
+          with open(p) as f: s = f.read()
+          sign = """import java.util.Properties
+          import java.io.FileInputStream
+          val keystoreProperties = Properties()
+          val keystorePropertiesFile = rootProject.file("key.properties")
+          if (keystorePropertiesFile.exists()) { keystoreProperties.load(FileInputStream(keystorePropertiesFile)) }
+          """
+          s = sign + s.replace("signingConfig = signingConfigs.getByName(\"debug\")", "signingConfig = signingConfigs.create(\"release\") {\n                keyAlias = keystoreProperties.getProperty(\"keyAlias\")\n                keyPassword = keystoreProperties.getProperty(\"keyPassword\")\n                storeFile = file(keystoreProperties.getProperty(\"storeFile\"))\n                storePassword = keystoreProperties.getProperty(\"storePassword\")\n            }")
+          with open(p, "w") as f: f.write(s)
+          '
+
+      - name: 아이콘 적용 및 AAB + APK + 웹 동시 빌드
         run: |
           flutter pub get
+          dart run flutter_launcher_icons
+          flutter build appbundle --release
           flutter build apk --release
           flutter build web --release --base-href "/airpulse-app/"
 
-      - name: 빌드된 APK 파일 업로드
+      - name: 플레이스토어용 정식 AAB 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: AirPulse-PlayStore-AAB
+          path: build/app/outputs/bundle/release/app-release.aab
+
+      - name: 테스트용 APK 업로드
         uses: actions/upload-artifact@v4
         with:
           name: AirPulse-Android-APK
