@@ -228,6 +228,8 @@ class _MainHomePageState extends State<MainHomePage> {
               const SizedBox(width: 4),
               FilterChip(
                 label: const Text("변경", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                visualDensity: VisualDensity.compact,
                 selectedColor: Colors.orange.shade200,
                 selected: _onlyChanged,
                 onSelected: (v) => setState(() => _onlyChanged = v),
@@ -235,8 +237,11 @@ class _MainHomePageState extends State<MainHomePage> {
               const SizedBox(width: 4),
               FilterChip(
                 label: const Text("C/S", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 2),
+                visualDensity: VisualDensity.compact,
                 selected: _includeCodeshare,
                 onSelected: (v) => setState(() => _includeCodeshare = v),
+              ),
               ),
             ],
           ),
@@ -327,9 +332,11 @@ class _MainHomePageState extends State<MainHomePage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("계획: ${(r['STD/A'] ?? '').toString().isEmpty ? '-' : r['STD/A']}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                Text("예상: ${(r['ETD/A'] ?? '').toString().isEmpty ? '-' : r['ETD/A']}", style: const TextStyle(fontSize: 12, color: Color(0xFF0066A6), fontWeight: FontWeight.bold)),
-                Text("실제: ${(r['ATD/A'] ?? '').toString().isEmpty ? '-' : r['ATD/A']}", style: const TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.bold)),
+                Text("${r['구분'] == 'INBOUND' ? 'STA' : 'STD'}: ${(r['STD/A'] ?? '').toString().isEmpty ? '-' : r['STD/A']}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                Text("${r['구분'] == 'INBOUND' ? 'ETA' : 'ETD'}: ${(r['ETD/A'] ?? '').toString().isEmpty ? '-' : r['ETD/A']}", style: const TextStyle(fontSize: 12, color: Color(0xFF0066A6), fontWeight: FontWeight.bold)),
+                Text("${r['구분'] == 'INBOUND' ? 'ATA' : 'ATD'}: ${(r['ATD/A'] ?? '').toString().isEmpty ? '-' : r['ATD/A']}", style: const TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.bold)),
+              ],
+            ),
               ],
             ),
           ],
