@@ -277,6 +277,8 @@ class _MainHomePageState extends State<MainHomePage> {
 
   Widget _buildFlightCard(Map<String, dynamic> r) {
     final flightNo = (r['편명'] ?? '').toString();
+    final ymd = (r['일자코드'] ?? '').toString();
+    final daySuffix = ymd.length >= 8 ? "/${ymd.substring(6, 8)}" : "";
     final status = (r['현황'] ?? '').toString();
     final isChanged = r['_changed'] == true;
     final isDelay = status.contains('지연') || status.contains('결항') || status.contains('회항');
@@ -313,7 +315,7 @@ class _MainHomePageState extends State<MainHomePage> {
                   child: Icon(isFav ? Icons.star : Icons.star_border, color: isFav ? Colors.amber : Colors.grey, size: 24),
                 ),
                 const SizedBox(width: 6),
-                Text(flightNo, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF00205B))),
+                Text("$flightNo$daySuffix", style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF00205B))),
                 if (isChanged) ...[
                   const SizedBox(width: 6),
                   Container(
@@ -359,7 +361,8 @@ class _MainHomePageState extends State<MainHomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text("${isInbound ? 'STA' : 'STD'}: ${(r['STD/A'] ?? '').toString().isEmpty ? '-' : r['STD/A']}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                Text("${isInbound ? 'ETA' : 'ETD'}: ${(r['ETD/A'] ?? '').toString().isEmpty ? '-' : r['ETD/A']}", style: const TextStyle(fontSize: 12, color: Color(0xFF0066A6), fontWeight: FontWeight.bold)),
+                if ((r['ATD/A'] ?? '').toString().isEmpty)
+                  Text("${isInbound ? 'ETA' : 'ETD'}: ${(r['ETD/A'] ?? '').toString().isEmpty ? '-' : r['ETD/A']}", style: const TextStyle(fontSize: 12, color: Color(0xFF0066A6), fontWeight: FontWeight.bold)),
                 Text("${isInbound ? 'ATA' : 'ATD'}: ${(r['ATD/A'] ?? '').toString().isEmpty ? '-' : r['ATD/A']}", style: const TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.bold)),
               ],
             ),
