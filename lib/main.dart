@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -36,6 +37,8 @@ class MainHomePage extends StatefulWidget {
 class _MainHomePageState extends State<MainHomePage> {
   int _tabIndex = 0;
   bool _isLoading = true;
+  bool _autoSync = true;
+  Timer? _syncTimer;
   String _updatedAt = "동기화 중...";
   String _errorMsg = "";
   List<Map<String, dynamic>> _allRecords = [];
@@ -44,16 +47,30 @@ class _MainHomePageState extends State<MainHomePage> {
   String _selectedIO = "전체";
   String _selectedType = "전체";
   bool _includeCodeshare = false;
+  bool _onlyChanged = false;
   final TextEditingController _searchCtrl = TextEditingController();
+  final ScrollController _scrollCtrl = ScrollController();
   Set<String> _favFlights = {};
   List<String> _favAirlines = [];
   List<String> _favStands = [];
   final TextEditingController _favAirlineCtrl = TextEditingController();
   final TextEditingController _favStandCtrl = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _loadPrefsAndFetch();
+    _syncTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (_autoSync && mounted) _fetchFlightData(silent: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _syncTimer?.cancel();
+    _searchCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadPrefsAndFetch() async {
@@ -75,12 +92,11 @@ class _MainHomePageState extends State<MainHomePage> {
     await prefs.setStringList('fav_stands', _favStands);
   }
 
-  Future<void> _fetchFlightData() async {
-    setState(() { _isLoading = true; _errorMsg = ""; });
+  Future<void> _fetchFlightData({bool silent = false}) async {
+    if (!silent) setState(() { _isLoading = true; _errorMsg = ""; });
     try {
-      const host = "raw." + "githubusercontent.com";
-      const path = "realredox/airpulse-db/main/flight_db.json";
-      final uri = Uri.parse("https://$host/$path?t=${DateTime.now().millisecondsSinceEpoch}");
+      const liveUrl = "https://storage.googleapis.com/airpulse-icn-data-2026/flight_db.json";
+      final uri = Uri.parse("$liveUrl?t=${DateTime.now().millisecondsSinceEpoch}");
       final res = await http.get(uri).timeout(const Duration(seconds: 15));
       if (res.statusCode == 200) {
         final decoded = jsonDecode(utf8.decode(res.bodyBytes));
@@ -101,17 +117,27 @@ class _MainHomePageState extends State<MainHomePage> {
           }
           _isLoading = false;
         });
-      } else {
+      } else if (!silent) {
         setState(() { _errorMsg = "서버 응답 오류 (${res.statusCode})"; _isLoading = false; });
       }
     } catch (e) {
-      setState(() { _errorMsg = "데이터 수신 실패: $e"; _isLoading = false; });
+      if (!silent) setState(() { _errorMsg = "데이터 수신 실패: $e"; _isLoading = false; });
+    }
+  }
+
+  void _jumpToCurrentTime(List<Map<String, dynamic>> currentList) {
+    final now = DateTime.now();
+    final nowStr = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:00";
+    final idx = currentList.indexWhere((r) => (r['STD/A'] ?? '').toString().compareTo(nowStr) >= 0);
+    if (idx > 0 && _scrollCtrl.hasClients) {
+      _scrollCtrl.animateTo(idx * 136.0, duration: const Duration(milliseconds: 400), curve: Curves.easeOut);
     }
   }
   List<Map<String, dynamic>> _getFilteredList({required bool onlyFavorites}) {
     final query = _searchCtrl.text.trim().toUpperCase();
     return _allRecords.where((r) {
       if (!_includeCodeshare && (r['_is_cs'] == true)) return false;
+      if (_onlyChanged && (r['_changed'] != true)) return false;
       if (onlyFavorites) {
         final fn = (r['편명'] ?? '').toString().toUpperCase();
         final al = (r['항공사코드'] ?? '').toString().toUpperCase();
@@ -132,7 +158,7 @@ class _MainHomePageState extends State<MainHomePage> {
   Widget _buildFilterBar() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       child: Column(
         children: [
           Row(
@@ -179,7 +205,7 @@ class _MainHomePageState extends State<MainHomePage> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             children: [
               Expanded(
@@ -199,7 +225,14 @@ class _MainHomePageState extends State<MainHomePage> {
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
+              FilterChip(
+                label: const Text("변경", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                selectedColor: Colors.orange.shade200,
+                selected: _onlyChanged,
+                onSelected: (v) => setState(() => _onlyChanged = v),
+              ),
+              const SizedBox(width: 4),
               FilterChip(
                 label: const Text("C/S", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                 selected: _includeCodeshare,
@@ -215,6 +248,7 @@ class _MainHomePageState extends State<MainHomePage> {
   Widget _buildFlightCard(Map<String, dynamic> r) {
     final flightNo = (r['편명'] ?? '').toString();
     final status = (r['현황'] ?? '').toString();
+    final isChanged = r['_changed'] == true;
     final isDelay = status.contains('지연') || status.contains('결항') || status.contains('회항');
     final isActive = status == '출발' || status == '도착';
     final isCargo = r['여객/화물'] == '화물';
@@ -223,10 +257,13 @@ class _MainHomePageState extends State<MainHomePage> {
     final badgeFg = isDelay ? const Color(0xFF991B1B) : (isActive ? const Color(0xFF075985) : const Color(0xFF334155));
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-      elevation: 1.5,
-      color: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      elevation: isChanged ? 3 : 1.2,
+      color: isChanged ? const Color(0xFFFFFBEB) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: isChanged ? const BorderSide(color: Colors.orange, width: 1.5) : BorderSide.none,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -246,6 +283,14 @@ class _MainHomePageState extends State<MainHomePage> {
                 ),
                 const SizedBox(width: 6),
                 Text(flightNo, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF00205B))),
+                if (isChanged) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(4)),
+                    child: const Text("방금변경", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
+                ],
                 const SizedBox(width: 6),
                 Expanded(child: Text(r['항공사명'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.black54), overflow: TextOverflow.ellipsis)),
                 Container(
@@ -262,17 +307,15 @@ class _MainHomePageState extends State<MainHomePage> {
                   ),
               ],
             ),
-            const Divider(height: 14),
+            const Divider(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Text("${r['출발지']} ➔ ${r['도착지']}", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 8),
-                    Text("(${r['기종']} / ${r['등록기호']})", style: const TextStyle(fontSize: 11, color: Colors.black54)),
-                  ],
-                ),
+                Row(children: [
+                  Text("${r['출발지']} ➔ ${r['도착지']}", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 6),
+                  Text("(${r['기종']} / ${r['등록기호']})", style: const TextStyle(fontSize: 11, color: Colors.black54)),
+                ]),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(color: const Color(0xFF00205B), borderRadius: BorderRadius.circular(5)),
@@ -280,7 +323,7 @@ class _MainHomePageState extends State<MainHomePage> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -299,20 +342,21 @@ class _MainHomePageState extends State<MainHomePage> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text("⭐ 담당 항공사 및 주기장 즐겨찾기 설정", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF00205B))),
-        const SizedBox(height: 6),
-        const Text("등록한 항공사나 주기장의 항공편은 하단 [즐겨찾기] 탭에 자동으로 모아집니다.", style: TextStyle(fontSize: 12, color: Colors.black54)),
+        SwitchListTile(
+          tileColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          title: const Text("30초마다 자동 실시간 동기화", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          subtitle: const Text("화면을 켜두면 자동으로 최신 1분 서버 데이터를 반영합니다."),
+          value: _autoSync,
+          onChanged: (v) => setState(() => _autoSync = v),
+        ),
         const SizedBox(height: 16),
-        TextField(
-          controller: _favAirlineCtrl,
-          decoration: const InputDecoration(labelText: "담당 항공사 코드 (쉼표로 구분)", hintText: "예: KE, OZ, 5X", border: OutlineInputBorder(), filled: true, fillColor: Colors.white),
-        ),
+        const Text("⭐ 담당 항공사 및 주기장 즐겨찾기 설정", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF00205B))),
+        const SizedBox(height: 10),
+        TextField(controller: _favAirlineCtrl, decoration: const InputDecoration(labelText: "담당 항공사 코드 (쉼표로 구분)", hintText: "예: KE, OZ, 5X", border: OutlineInputBorder(), filled: true, fillColor: Colors.white)),
+        const SizedBox(height: 10),
+        TextField(controller: _favStandCtrl, decoration: const InputDecoration(labelText: "담당 주기장 번호 (쉼표로 구분)", hintText: "예: 627, 628, 101", border: OutlineInputBorder(), filled: true, fillColor: Colors.white)),
         const SizedBox(height: 12),
-        TextField(
-          controller: _favStandCtrl,
-          decoration: const InputDecoration(labelText: "담당 주기장 번호 (쉼표로 구분)", hintText: "예: 627, 628, 101", border: OutlineInputBorder(), filled: true, fillColor: Colors.white),
-        ),
-        const SizedBox(height: 14),
         ElevatedButton.icon(
           style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00205B), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
           icon: const Icon(Icons.save),
@@ -326,13 +370,6 @@ class _MainHomePageState extends State<MainHomePage> {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("즐겨찾기 필터가 스마트폰에 저장되었습니다.")));
           },
         ),
-        const Divider(height: 32),
-        ListTile(
-          tileColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          title: const Text("데이터 출처 및 갱신 안내", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-          subtitle: Text("인천국제공항공사 공공데이터포털 OpenAPI 연동\n최근 서버 수집 시각: $_updatedAt"),
-        ),
       ],
     );
   }
@@ -345,10 +382,22 @@ class _MainHomePageState extends State<MainHomePage> {
         backgroundColor: const Color(0xFF00205B),
         foregroundColor: Colors.white,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text("AirPulse", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          Text("수집: $_updatedAt", style: const TextStyle(fontSize: 11, color: Colors.white70)),
+          Row(children: [
+            const Text("AirPulse", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(color: _autoSync ? Colors.green : Colors.grey, borderRadius: BorderRadius.circular(10)),
+              child: Text(_autoSync ? "LIVE 30s" : "수동", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+            ),
+          ]),
+          Text("서버수집: $_updatedAt", style: const TextStyle(fontSize: 11, color: Colors.white70)),
         ]),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchFlightData)],
+        actions: [
+          if (_tabIndex != 2)
+            IconButton(icon: const Icon(Icons.access_time), tooltip: "현재 시간대 이동", onPressed: () => _jumpToCurrentTime(listData)),
+          IconButton(icon: const Icon(Icons.refresh), tooltip: "즉시 동기화", onPressed: () => _fetchFlightData()),
+        ],
       ),
       body: _tabIndex == 2 ? _buildSettingsTab() : Column(children: [
         _buildFilterBar(),
@@ -359,8 +408,8 @@ class _MainHomePageState extends State<MainHomePage> {
         Expanded(
           child: _isLoading ? const Center(child: CircularProgressIndicator())
             : _errorMsg.isNotEmpty ? Center(child: Text(_errorMsg, style: const TextStyle(color: Colors.red)))
-            : listData.isEmpty ? const Center(child: Text("조건에 맞는 운항편이 없습니다.\n[설정]에서 담당 항공사/주기장을 등록해 보세요.", textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)))
-            : ListView.builder(itemCount: listData.length, itemBuilder: (ctx, idx) => _buildFlightCard(listData[idx])),
+            : listData.isEmpty ? const Center(child: Text("조건에 맞는 운항편이 없습니다.", textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)))
+            : ListView.builder(controller: _scrollCtrl, itemCount: listData.length, itemBuilder: (ctx, idx) => _buildFlightCard(listData[idx])),
         ),
       ]),
       bottomNavigationBar: NavigationBar(
