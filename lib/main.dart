@@ -182,8 +182,8 @@ class _MainHomePageState extends State<MainHomePage> {
                   decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), border: OutlineInputBorder()),
                   items: const [
                     DropdownMenuItem(value: "전체", child: Text("구분: 전체", style: TextStyle(fontSize: 12))),
-                    DropdownMenuItem(value: "INBOUND", child: Text("INBOUND", style: TextStyle(fontSize: 12))),
-                    DropdownMenuItem(value: "OUTBOUND", child: Text("OUTBOUND", style: TextStyle(fontSize: 12))),
+                    DropdownMenuItem(value: "INBOUND", child: Text("IN/B", style: TextStyle(fontSize: 12))),
+                    DropdownMenuItem(value: "OUTBOUND", child: Text("OUT/B", style: TextStyle(fontSize: 12))),
                   ],
                   onChanged: (v) => setState(() => _selectedIO = v ?? "전체"),
                 ),
