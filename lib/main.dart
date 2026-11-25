@@ -95,7 +95,7 @@ class _MainHomePageState extends State<MainHomePage> {
   Future<void> _fetchFlightData({bool silent = false}) async {
     if (!silent) setState(() { _isLoading = true; _errorMsg = ""; });
     try {
-      const liveUrl = "https://storage.googleapis.com/airpulse-icn-data-2026/flight_db.json";
+      const liveUrl = "여기에_복사한_공개_URL_붙여넣기";
       final uri = Uri.parse("$liveUrl?t=${DateTime.now().millisecondsSinceEpoch}");
       final res = await http.get(uri).timeout(const Duration(seconds: 15));
       if (res.statusCode == 200) {
@@ -175,15 +175,15 @@ class _MainHomePageState extends State<MainHomePage> {
               ),
               const SizedBox(width: 6),
               Expanded(
-                flex: 3,
+                flex: 2,
                 child: DropdownButtonFormField<String>(
                   value: _selectedIO,
                   isDense: true,
                   decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6), border: OutlineInputBorder()),
                   items: const [
                     DropdownMenuItem(value: "전체", child: Text("구분: 전체", style: TextStyle(fontSize: 12))),
-                    DropdownMenuItem(value: "INBOUND", child: Text("IN/B", style: TextStyle(fontSize: 12))),
-                    DropdownMenuItem(value: "OUTBOUND", child: Text("OUT/B", style: TextStyle(fontSize: 12))),
+                    DropdownMenuItem(value: "INBOUND", child: Text("IN/B", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                    DropdownMenuItem(value: "OUTBOUND", child: Text("OUT/B", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
                   ],
                   onChanged: (v) => setState(() => _selectedIO = v ?? "전체"),
                 ),
@@ -265,6 +265,7 @@ class _MainHomePageState extends State<MainHomePage> {
     final isFav = _favFlights.contains(flightNo.toUpperCase());
     final badgeBg = isDelay ? const Color(0xFFFEE2E2) : (isActive ? const Color(0xFFE0F2FE) : const Color(0xFFE2E8F0));
     final badgeFg = isDelay ? const Color(0xFF991B1B) : (isActive ? const Color(0xFF075985) : const Color(0xFF334155));
+    final isInbound = r['구분'] == 'INBOUND';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -337,11 +338,9 @@ class _MainHomePageState extends State<MainHomePage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("${r['구분'] == 'INBOUND' ? 'STA' : 'STD'}: ${(r['STD/A'] ?? '').toString().isEmpty ? '-' : r['STD/A']}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                Text("${r['구분'] == 'INBOUND' ? 'ETA' : 'ETD'}: ${(r['ETD/A'] ?? '').toString().isEmpty ? '-' : r['ETD/A']}", style: const TextStyle(fontSize: 12, color: Color(0xFF0066A6), fontWeight: FontWeight.bold)),
-                Text("${r['구분'] == 'INBOUND' ? 'ATA' : 'ATD'}: ${(r['ATD/A'] ?? '').toString().isEmpty ? '-' : r['ATD/A']}", style: const TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.bold)),
-              ],
-            ),
+                Text("${isInbound ? 'STA' : 'STD'}: ${(r['STD/A'] ?? '').toString().isEmpty ? '-' : r['STD/A']}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                Text("${isInbound ? 'ETA' : 'ETD'}: ${(r['ETD/A'] ?? '').toString().isEmpty ? '-' : r['ETD/A']}", style: const TextStyle(fontSize: 12, color: Color(0xFF0066A6), fontWeight: FontWeight.bold)),
+                Text("${isInbound ? 'ATA' : 'ATD'}: ${(r['ATD/A'] ?? '').toString().isEmpty ? '-' : r['ATD/A']}", style: const TextStyle(fontSize: 12, color: Colors.teal, fontWeight: FontWeight.bold)),
               ],
             ),
           ],
