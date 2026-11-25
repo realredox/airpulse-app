@@ -65,6 +65,7 @@ jobs:
           flutter build appbundle --release
           flutter build apk --release
           flutter build web --release --base-href "/airpulse-app/"
+          cp privacy.html build/web/
 
       - name: 플레이스토어용 정식 AAB 업로드
         uses: actions/upload-artifact@v4
